@@ -1,10 +1,11 @@
 /*
-** selectserver.c -- a cheezy multiperson chat server
-*/
+ ** selectserver.cpp -- a cheezy multiperson chat server
+ */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdio>
+#include <algorithm>
+#include <cstdlib>
+#include <cstring>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -49,7 +50,7 @@ int main(void)
     FD_ZERO(&read_fds);
 
     // get us a socket and bind it
-    memset(&hints, 0, sizeof hints);
+    std::memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE;
@@ -57,13 +58,13 @@ int main(void)
         fprintf(stderr, "selectserver: %s\n", gai_strerror(rv));
         exit(1);
     }
-    
+
     for(p = ai; p != NULL; p = p->ai_next) {
         listener = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
         if (listener < 0) { 
             continue;
         }
-        
+
         // lose the pesky "address already in use" error message
         setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
 
@@ -110,8 +111,8 @@ int main(void)
                     // handle new connections
                     addrlen = sizeof remoteaddr;
                     newfd = accept(listener,
-                        (struct sockaddr *)&remoteaddr,
-                        &addrlen);
+                            (struct sockaddr *)&remoteaddr,
+                            &addrlen);
 
                     if (newfd == -1) {
                         perror("accept");
@@ -121,11 +122,11 @@ int main(void)
                             fdmax = newfd;
                         }
                         printf("selectserver: new connection from %s on "
-                            "socket %d\n",
-                            inet_ntop(remoteaddr.ss_family,
-                                get_in_addr((struct sockaddr*)&remoteaddr),
-                                remoteIP, INET6_ADDRSTRLEN),
-                            newfd);
+                                "socket %d\n",
+                                inet_ntop(remoteaddr.ss_family,
+                                    get_in_addr((struct sockaddr*)&remoteaddr),
+                                    remoteIP, INET6_ADDRSTRLEN),
+                                newfd);
                     }
                 } else {
                     // handle data from a client
@@ -157,6 +158,6 @@ int main(void)
             } // END got new incoming connection
         } // END looping through file descriptors
     } // END for(;;)--and you thought it would never end!
-    
+
     return 0;
 }
