@@ -53,14 +53,6 @@ void addNewUser(std::string buf)
                 std::cout<<"already exists";
                 alreadyExists = true;
             }
-            // int i;
-            // for (i = 0; i < userId.length(); ++i) {
-            //     if(userId.c_str()[i] != buf[5+i]) {
-            //         break;
-            //     }
-            // }
-            // if(userId.length() != 0 && i == userId.length())
-            //     std::cout<<"already exists";
         }
     }
     else
@@ -111,6 +103,23 @@ void loginUser(std::string buf, int fd) {
         std::cout<<"could not open file\n";
     }
     f.close();
+}
+
+void sendMessage(std::string packet) {
+    int fd=1;
+    std::string data = packet.substr(5);
+    std::string from_addr = data.substr(0,data.find("\n"));
+    data = data.substr(data.find("\n"));
+    std::string to_addr = data.substr(0,data.find("\n"));
+    data = data.substr(data.find("\n"));
+    for(int i=0;i<activeUsers.size();i++)
+        if(from_addr.compare(activeUsers[i].id)==0) {
+            fd=activeUsers[i].fd;
+            break;
+        }
+    if (send(fd, data.c_str(), data.length(), 0) == -1) {
+        perror("send");
+    }
 }
 
 int main(void)
@@ -243,19 +252,30 @@ int main(void)
                                     std::cout<<"logging in User\n";
                                     loginUser(temp, i);
                                     break;
+                                case 'M':
+                                    std::cout<<"Sending Message\n";
+                                    sendMessage(temp);
+                                    break;
+                                case 'U':
+                                    std::string reply("Active Users:");
+                                    for(int p=0;p<activeUsers.size();p++)
+                                        reply = reply+"\n"+activeUsers[p].id;
+                                    if (send(i, reply.c_str(), reply.length(), 0) == -1) {
+                                        perror("send");
+                                    }
                             };
                             // we got some data from a client
-                            for(j = 0; j <= fdmax; j++) {
-                                // send to everyone!
-                                if (FD_ISSET(j, &master)) {
-                                    // except the listener and ourselves
-                                    if (j != listener && j != i) {
-                                        if (send(j, buf, nbytes, 0) == -1) {
-                                            perror("send");
-                                        }
-                                    }
-                                }
-                            }
+                            // for(j = 0; j <= fdmax; j++) {
+                            //     // send to everyone!
+                            //     if (FD_ISSET(j, &master)) {
+                            //         // except the listener and ourselves
+                            //         if (j != listener && j != i) {
+                            //             if (send(j, buf, nbytes, 0) == -1) {
+                            //                 perror("send");
+                            //             }
+                            //         }
+                            //     }
+                            // }
                         }
                     }
                 } // END handle data from client

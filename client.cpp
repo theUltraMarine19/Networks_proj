@@ -16,7 +16,7 @@
 
 using namespace std;
 
-void readdata(string &temp, char pac_type, string to_addr, string from_addr){
+void readdata(string &temp, char pac_type, string &to_addr, string from_addr){
     string user;
     string header;
     int numbytes;
@@ -26,18 +26,17 @@ void readdata(string &temp, char pac_type, string to_addr, string from_addr){
         if(user.length()>14)
             cout<<"ERROR";
         else {
-            user=user+"\n";
             cin>>data;
             if(data.length()>14)
                 cout<<"ERROR";
             else {
-                data=data+"\n";
-                numbytes=5+user.length()+data.length();
+                numbytes=7+user.length()+data.length();
                 header = to_string(numbytes);
                 while(header.length()<4)
                 header="0"+header;
                 header=header+pac_type;
-                temp=header+user+data;
+                temp=header+user+"\n"+data+"\n";
+                to_addr=user;
             }
         }
     }
@@ -78,6 +77,16 @@ int main(){
     serveraddr.sin_port = htons(9034);
     serveraddr.sin_addr = *((struct in_addr *)he->h_addr);
     bzero(&(serveraddr.sin_zero), 8);
+    
+    string packet,temp1,temp2;
+    int num;
+    cin>>curr_state;
+    // cin>>temp1>>packet;
+    // packet=temp1+"\n"+packet+"\n"
+    if(curr_state==1)    
+        readdata(packet,'R',temp1,temp2);
+    else
+        readdata(packet,'L',temp1,temp2);
 
     if(connect(sockfd,(struct sockaddr*)&serveraddr,sizeof(struct sockaddr))==-1){
         perror("connect");
@@ -88,13 +97,6 @@ int main(){
     FD_SET(STDIN,&master);
 
     fdmax = sockfd;
-    string packet,temp1,temp2;
-    int num;
-    cin>>curr_state;
-    if(curr_state==1)    
-        readdata(packet,'R',temp1,temp2);
-    else
-        readdata(packet,'L',temp1,temp2);
     if((num=send(sockfd,packet.c_str(),packet.length(),0))==-1){
         perror("send");
         exit(0);
@@ -110,18 +112,26 @@ int main(){
             char buf[100];
             int numBytes = read(STDIN,buf,1000);
             buf[numBytes]='\0';
-            if(buf[0]=='3')
+            if(buf[0]=='3') 
                 curr_state=3;
-            if (curr_state==3) {
+            else if(buf[0] == '4') {
+                string buffer;
+                readdata(buffer,'U',temp1,temp2);
+                if((numBytes=send(sockfd,buffer.c_str(),buffer.length(),0))==-1){
+                perror("send");
+                exit(0);
+                }
+            }
+            else if (curr_state==3 and temp2.length()!=0) {
                 string buffer(buf);
-                temp1 = "From";
-                temp2 = "To";
                 readdata(buffer,'M',temp1,temp2);
                 if((numBytes=send(sockfd,buffer.c_str(),buffer.length(),0))==-1){
                 perror("send");
                 exit(0);
                 }
             }
+            else
+                temp2 = string(buf);
         }
 
         if(FD_ISSET(sockfd,&readfds)){
