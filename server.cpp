@@ -38,7 +38,7 @@ void addNewUser(std::string buf)
     bool alreadyExists = false;
     std::string userIdInp = buf.substr(5,buf.find("\n")-5);
     std::string passwordInp = buf.substr(buf.find("\n")+1,buf.length()-buf.find("\n")-2);
-    std::fstream f("./userDetails.txt", std::ios::in | std::ios::app);
+    std::ifstream f("./userDetails.txt", std::ios::in );
     if(f)
     {
         while(!f.eof())
@@ -62,18 +62,20 @@ void addNewUser(std::string buf)
             // if(userId.length() != 0 && i == userId.length())
             //     std::cout<<"already exists";
         }
-        if(!alreadyExists) {
-            std::cout<<"writing username\n";
-            f<<userIdInp<<" ";
-            std::cout<<"writing password\n";
-            f<<passwordInp<<"\n";            
-        }
     }
     else
     {
         std::cout<<"could not open file\n";
     }
     f.close();
+    std::ofstream f1("./userDetails.txt", std::ios::app);
+    if(!alreadyExists) {
+        std::cout<<"writing username\n"<<userIdInp;
+        f1<<"\n"<<userIdInp;
+        std::cout<<"writing password\n"<<passwordInp;
+        f1<<" "<<passwordInp;            
+    }
+    f1.close();
 }
 
 void loginUser(std::string buf, int fd) {
@@ -82,7 +84,7 @@ void loginUser(std::string buf, int fd) {
     std::string userIdInp = buf.substr(5,buf.find("\n")-5);
     std::string passwordInp = buf.substr(buf.find("\n")+1,buf.length()-buf.find("\n")-2);
     bool userExists = false;
-    std::fstream f("./userDetails.txt", std::ios::in | std::ios::app);
+    std::ifstream f("./userDetails.txt", std::ios::in);
     if(f) {
         while(!f.eof()) {
             f>>userId;

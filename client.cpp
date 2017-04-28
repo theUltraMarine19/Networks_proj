@@ -42,21 +42,20 @@ void readdata(string &temp, char pac_type, string to_addr, string from_addr){
         }
     }
     else {
-        cin>>data;
-        data=data+"\n";
-        numbytes=7+from_addr.length()+to_addr.length()+data.length();
+        temp=temp+"\n";
+        numbytes=7+from_addr.length()+to_addr.length()+temp.length();
         header = to_string(numbytes);
         while(header.length()<4)
         header="0"+header;
         header=header+pac_type+from_addr+"\n"+to_addr+"\n";
-        temp=header+data;
+        temp=header+temp;
     }   
 }
 
 int main(){
     struct sockaddr_in serveraddr;
     struct hostent *he;
-
+    int curr_state;
     fd_set master;
     fd_set readfds;
     int fdmax;
@@ -91,8 +90,8 @@ int main(){
     fdmax = sockfd;
     string packet,temp1,temp2;
     int num;
-    cin>>num;
-    if(num==1)    
+    cin>>curr_state;
+    if(curr_state==1)    
         readdata(packet,'R',temp1,temp2);
     else
         readdata(packet,'L',temp1,temp2);
@@ -111,9 +110,17 @@ int main(){
             char buf[100];
             int numBytes = read(STDIN,buf,1000);
             buf[numBytes]='\0';
-            if((numBytes=send(sockfd,buf,strlen(buf),0))==-1){
+            if(buf[0]=='3')
+                curr_state=3;
+            if (curr_state==3) {
+                string buffer(buf);
+                temp1 = "From";
+                temp2 = "To";
+                readdata(buffer,'M',temp1,temp2);
+                if((numBytes=send(sockfd,buffer.c_str(),buffer.length(),0))==-1){
                 perror("send");
                 exit(0);
+                }
             }
         }
 
