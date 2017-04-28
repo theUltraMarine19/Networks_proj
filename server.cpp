@@ -31,8 +31,10 @@ void *get_in_addr(struct sockaddr *sa)
 }
 std::vector<User> activeUsers;
 
-void addNewUser(std::string buf)
+void addNewUser(std::string buf, int fd)
 {
+    std::string response;
+    char resType = 'I';
     std::string userId;
     std::string password;
     bool alreadyExists = false;
@@ -49,8 +51,7 @@ void addNewUser(std::string buf)
                 break;
             }
             f>>password;
-            if(userId.compare(userIdInp)==0) { 
-                std::cout<<"already exists";
+            if(userId.compare(userIdInp)==0) {
                 alreadyExists = true;
             }
         }
@@ -65,12 +66,25 @@ void addNewUser(std::string buf)
         std::cout<<"writing username\n"<<userIdInp;
         f1<<"\n"<<userIdInp;
         std::cout<<"writing password\n"<<passwordInp;
-        f1<<" "<<passwordInp;            
+        f1<<" "<<passwordInp;
+        response = "Successfully registered :)\n";
+        resType = 'I';
+    }
+    else {
+        response = "User id already exists :( Try some new id\n";
+        resType = 'F';
     }
     f1.close();
+    std::string from_addr("server");
+    readdata(response, resType, from_addr, userIdInp);
+    if (send(fd, response.c_str(), response.length(), 0) == -1) {
+        perror("send");
+    }
 }
 
 void loginUser(std::string buf, int fd) {
+    std::string response;
+    char resType = 'I';
     std::string userId;
     std::string password;
     std::string userIdInp = buf.substr(5,buf.find("\n")-5);
@@ -86,38 +100,99 @@ void loginUser(std::string buf, int fd) {
             f>>password;
             if(userId.compare(userIdInp)==0) {
                 userExists = true;
-                if(password.compare(passwordInp)==0) {
-                    std::cout<<"Login Success\n";
-                    activeUsers.push_back(User(userId, fd));
+                std::vector<User>::iterator iter;
+                for (iter = activeUsers.begin(); iter != activeUsers.end(); iter++) {
+                    if(userId.compare(iter->id) == 0) {
+                        break;
+                    }
                 }
-                else
-                    std::cout<<"Wrong Password"<<passwordInp<<password;
+                if (iter != activeUsers.end()) {
+                    response = "Already Logged in -_-\n";
+                    resType = 'F';
+                }
+                else if(password.compare(passwordInp)==0) {
+                    response = "Login Success\n";
+                    activeUsers.push_back(User(userId, fd));
+                    resType = 'I';
+                }
+                else {
+                    response = "Wrong Password :(\n";
+                    resType = 'F';
+                }
             }
         }
         if(!userExists) {
-            std::cout<<"Username does not exists\n"<<buf;
+            response = "Username does not exists\n";
+            resType = 'F';
         }
     }
     else
     {
         std::cout<<"could not open file\n";
     }
+    std::string from_addr("server");
+    readdata(response, resType, from_addr, userIdInp);
+    if (send(fd, response.c_str(), response.length(), 0) == -1) {
+        perror("send");
+    }
     f.close();
 }
 
+void logoutUser(int fd) {
+    std::string response;
+    char resType = 'I';
+    std::vector<User>::iterator iter;
+    std::string user;
+    for (iter = activeUsers.begin(); iter != activeUsers.end(); iter++)
+    {
+        if (iter->fd == fd)
+        {
+            user = iter->id;
+            response = "Logged out. Visit Again :)\n";
+            resType = 'F';
+            activeUsers.erase(iter);
+            break;
+        }
+    }
+    std::string from_addr("server");
+    readdata(response, resType, from_addr, user);
+    if (send(fd, response.c_str(), response.length(), 0) == -1) {
+        perror("send");
+    }
+}
 void sendMessage(std::string packet) {
     int fd=1;
     std::string data = packet.substr(5);
     std::string from_addr = data.substr(0,data.find("\n"));
-    data = data.substr(data.find("\n"));
+    data = data.substr(data.find("\n") + 1);
     std::string to_addr = data.substr(0,data.find("\n"));
-    data = data.substr(data.find("\n"));
-    for(int i=0;i<activeUsers.size();i++)
-        if(from_addr.compare(activeUsers[i].id)==0) {
-            fd=activeUsers[i].fd;
+    data = data.substr(data.find("\n") + 1);
+    std::vector<User>::iterator iter;
+    for (iter = activeUsers.begin(); iter != activeUsers.end(); iter++) {
+        if(from_addr.compare(iter->id) == 0) {
+            fd = iter->fd;
             break;
         }
-    if (send(fd, data.c_str(), data.length(), 0) == -1) {
+    }
+    if (send(fd, packet.c_str(), packet.length(), 0) == -1) {
+        perror("send");
+    }
+}
+void sendActiveList(int fd)
+{
+    char resType = 'I';
+    std::string user;
+    std::string reply("Active Users:\n");
+    std::vector<User>::iterator iter;
+    for (iter = activeUsers.begin(); iter != activeUsers.end(); iter++) {
+        reply += iter->id + "\n";
+        if (iter->fd == fd) {
+            user = iter->id;
+        }
+    }
+    std::string from_addr("server");
+    readdata(reply, resType, from_addr, user);
+    if (send(fd, reply.c_str(), reply.length(), 0) == -1) {
         perror("send");
     }
 }
@@ -227,11 +302,13 @@ int main(void)
                     }
                 } else {
                     // handle data from a client
+                    std::memset(&buf, 0, 256);
                     if ((nbytes = recv(i, buf, sizeof buf, 0)) <= 0) {
                         // got error or connection closed by client
                         if (nbytes == 0) {
                             // connection closed
                             printf("selectserver: socket %d hung up\n", i);
+                            logoutUser(i);
                         } else {
                             perror("recv");
                         }
@@ -247,22 +324,23 @@ int main(void)
                             {
                                 case 'R':
                                     std::cout<<"adding User\n";
-                                    addNewUser(temp);
+                                    addNewUser(temp, i);
                                 case 'L':
                                     std::cout<<"logging in User\n";
                                     loginUser(temp, i);
+                                    break;
+                                case 'O':
+                                    std::cout<<"loggin out User\n";
+                                    logoutUser(i);
                                     break;
                                 case 'M':
                                     std::cout<<"Sending Message\n";
                                     sendMessage(temp);
                                     break;
                                 case 'U':
-                                    std::string reply("Active Users:");
-                                    for(int p=0;p<activeUsers.size();p++)
-                                        reply = reply+"\n"+activeUsers[p].id;
-                                    if (send(i, reply.c_str(), reply.length(), 0) == -1) {
-                                        perror("send");
-                                    }
+                                    std::cout<<"sending active list\n";
+                                    sendActiveList(i);
+                                    break;
                             };
                             // we got some data from a client
                             // for(j = 0; j <= fdmax; j++) {

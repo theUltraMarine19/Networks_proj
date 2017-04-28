@@ -9,47 +9,13 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include "user.h"
 
 #define PORT "9034"   // port we're connecting to
 
 #define STDIN 0
 
-using namespace std;
 
-void readdata(string &temp, char pac_type, string &to_addr, string from_addr){
-    string user;
-    string header;
-    int numbytes;
-    string data;
-    if(pac_type=='R' || pac_type=='L') {
-        cin>>user;
-        if(user.length()>14)
-            cout<<"ERROR";
-        else {
-            cin>>data;
-            if(data.length()>14)
-                cout<<"ERROR";
-            else {
-                numbytes=7+user.length()+data.length();
-                header = to_string(numbytes);
-                while(header.length()<4)
-                header="0"+header;
-                header=header+pac_type;
-                temp=header+user+"\n"+data+"\n";
-                to_addr=user;
-            }
-        }
-    }
-    else {
-        temp=temp+"\n";
-        numbytes=7+from_addr.length()+to_addr.length()+temp.length();
-        header = to_string(numbytes);
-        while(header.length()<4)
-        header="0"+header;
-        header=header+pac_type+from_addr+"\n"+to_addr+"\n";
-        temp=header+temp;
-    }   
-}
 
 int main(){
     struct sockaddr_in serveraddr;
@@ -58,95 +24,135 @@ int main(){
     fd_set master;
     fd_set readfds;
     int fdmax;
+    while(true)
+    {
 
-    FD_ZERO(&master);
-    FD_ZERO(&readfds);
+        FD_ZERO(&master);
+        FD_ZERO(&readfds);
 
-    if((he=gethostbyname("localhost"))==NULL){
-        perror("gethostbyname");
-        exit(0);
-    }
-
-    int sockfd;
-    if((sockfd=socket(AF_INET,SOCK_STREAM,0))==-1){
-        perror("socket");
-        exit(0);
-    }
-
-    serveraddr.sin_family = AF_INET;
-    serveraddr.sin_port = htons(9034);
-    serveraddr.sin_addr = *((struct in_addr *)he->h_addr);
-    bzero(&(serveraddr.sin_zero), 8);
-    
-    string packet,temp1,temp2;
-    int num;
-    cin>>curr_state;
-    // cin>>temp1>>packet;
-    // packet=temp1+"\n"+packet+"\n"
-    if(curr_state==1)    
-        readdata(packet,'R',temp1,temp2);
-    else
-        readdata(packet,'L',temp1,temp2);
-
-    if(connect(sockfd,(struct sockaddr*)&serveraddr,sizeof(struct sockaddr))==-1){
-        perror("connect");
-        exit(0);
-    }
-
-    FD_SET(sockfd,&master);
-    FD_SET(STDIN,&master);
-
-    fdmax = sockfd;
-    if((num=send(sockfd,packet.c_str(),packet.length(),0))==-1){
-        perror("send");
-        exit(0);
-    }
-    while(1){
-        readfds=master;
-        if(select(fdmax+1,&readfds,NULL,NULL,NULL)==-1){
-            perror("select");
+        if((he=gethostbyname("localhost"))==NULL){
+            perror("gethostbyname");
             exit(0);
         }
 
-        if(FD_ISSET(STDIN,&readfds)){
-            char buf[100];
-            int numBytes = read(STDIN,buf,1000);
-            buf[numBytes]='\0';
-            if(buf[0]=='3') 
-                curr_state=3;
-            else if(buf[0] == '4') {
-                string buffer;
-                readdata(buffer,'U',temp1,temp2);
-                if((numBytes=send(sockfd,buffer.c_str(),buffer.length(),0))==-1){
-                perror("send");
-                exit(0);
-                }
-            }
-            else if (curr_state==3 and temp2.length()!=0) {
-                string buffer(buf);
-                readdata(buffer,'M',temp1,temp2);
-                if((numBytes=send(sockfd,buffer.c_str(),buffer.length(),0))==-1){
-                perror("send");
-                exit(0);
-                }
-            }
-            else
-                temp2 = string(buf);
+        int sockfd;
+        if((sockfd=socket(AF_INET,SOCK_STREAM,0))==-1){
+            perror("socket");
+            exit(0);
         }
 
-        if(FD_ISSET(sockfd,&readfds)){
-            int numBytes;
-            char buf[100];
-            if((numBytes=recv(sockfd,buf,sizeof buf,0))<0){
-                perror("recv");
+        serveraddr.sin_family = AF_INET;
+        serveraddr.sin_port = htons(9034);
+        serveraddr.sin_addr = *((struct in_addr *)he->h_addr);
+        bzero(&(serveraddr.sin_zero), 8);
+
+        string packet,temp1,temp2;
+        int num;
+        // cin>>temp1>>packet;
+        // packet=temp1+"\n"+packet+"\n"
+        do
+        {
+            cin>>curr_state;
+            if(curr_state==1)
+                readdata(packet,'R',temp1,temp2);
+            else if(curr_state==2)
+                readdata(packet,'L',temp1,temp2);
+            else
+                curr_state = 0;
+        }while(curr_state == 0);
+
+        if(connect(sockfd,(struct sockaddr*)&serveraddr,sizeof(struct sockaddr))==-1){
+            perror("connect");
+            exit(0);
+        }
+
+        FD_SET(sockfd,&master);
+        FD_SET(STDIN,&master);
+
+        fdmax = sockfd;
+        if((num=send(sockfd,packet.c_str(),packet.length(),0))==-1){
+            perror("send");
+            exit(0);
+        }
+        bool loggedOut = false;
+        while(!loggedOut){
+            readfds=master;
+            if(select(fdmax+1,&readfds,NULL,NULL,NULL)==-1){
+                perror("select");
+                exit(0);
             }
-            else{
+
+            if(FD_ISSET(STDIN,&readfds)){
+                char buf[100];
+                int numBytes = read(STDIN,buf,1000);
                 buf[numBytes]='\0';
-                printf("%s",buf);
+                if(buf[0]=='3') {
+                    curr_state=3;
+                    temp2 = "";
+                }
+                else if(buf[0] == '4') {
+                    string buffer;
+                    readdata(buffer,'U',temp1,temp2);
+                    if((numBytes=send(sockfd,buffer.c_str(),buffer.length(),0))==-1){
+                        perror("send");
+                        exit(0);
+                    }
+                }
+                else if(buf[0] == '6') {
+                    exit(0);
+                }
+                else if(buf[0] == '5') {
+                    string buffer;
+                    readdata(buffer,'O',temp1,temp2);
+                    if((numBytes=send(sockfd,buffer.c_str(),buffer.length(),0))==-1){
+                        perror("send");
+                        exit(0);
+                    }
+                }
+                else if (curr_state==3 and temp2.length()!=0) {
+                    string buffer(buf);
+                    readdata(buffer,'M',temp1,temp2);
+                    if((numBytes=send(sockfd,buffer.c_str(),buffer.length(),0))==-1){
+                        perror("send");
+                        exit(0);
+                    }
+                }
+                else
+                    temp2 = string(buf);
+            }
+
+            if(FD_ISSET(sockfd,&readfds)){
+                int numBytes;
+                char buf[256];
+                if((numBytes=recv(sockfd,buf,sizeof buf,0))<0){
+                    perror("recv");
+                }
+                else{
+                    buf[numBytes]='\0';
+                    int i=0, n=0;
+                    switch(buf[4])
+                    {
+                        case 'F':
+                            loggedOut = true;
+                        case 'I':
+                        case 'M':
+                            while (buf[i] != '\0' and n < 2)
+                            {
+                                if (buf[i] == '\n') {
+                                    n++;
+                                    break;
+                                }
+                                i++;
+                            }
+                            printf("%s", &buf[i]);
+                            break;
+                    };
+                }
             }
         }
+        close(sockfd);
+
     }
-    close(sockfd);
 
     return 0;
 }
