@@ -31,12 +31,15 @@ void *get_in_addr(struct sockaddr *sa)
 }
 std::vector<User> activeUsers;
 
-void addNewUser(char buf[256])
+void addNewUser(std::string buf)
 {
     std::string userId;
     std::string password;
-    std::fstream f("~/networksproj/userDetails.txt", std::ios::in | std::ios::app);
-    if(!f)
+    bool alreadyExists = false;
+    std::string userIdInp = buf.substr(5,buf.find("\n")-5);
+    std::string passwordInp = buf.substr(buf.find("\n")+1,buf.length()-buf.find("\n")-2);
+    std::fstream f("./userDetails.txt", std::ios::in | std::ios::app);
+    if(f)
     {
         while(!f.eof())
         {
@@ -46,28 +49,25 @@ void addNewUser(char buf[256])
                 break;
             }
             f>>password;
-            int i;
-            for (i = 0; i < userId.length(); ++i) {
-                if(userId.c_str()[i] != buf[5+i]) {
-                    break;
-                }
-            }
-            if(userId.length() != 0 && i == userId.length())
+            if(userId.compare(userIdInp)==0) { 
                 std::cout<<"already exists";
+                alreadyExists = true;
+            }
+            // int i;
+            // for (i = 0; i < userId.length(); ++i) {
+            //     if(userId.c_str()[i] != buf[5+i]) {
+            //         break;
+            //     }
+            // }
+            // if(userId.length() != 0 && i == userId.length())
+            //     std::cout<<"already exists";
         }
-        const int MAX_LEN = 15;
-        std::cout<<"writing username\n";
-        for (int i = 0; i < MAX_LEN; ++i)
-        {
-            f<<buf[5+i];
+        if(!alreadyExists) {
+            std::cout<<"writing username\n";
+            f<<userIdInp<<" ";
+            std::cout<<"writing password\n";
+            f<<passwordInp<<"\n";            
         }
-        std::cout<<"writing password\n";
-        f<<'\n';
-        for (int i = 0; i < MAX_LEN; ++i)
-        {
-            f<<buf[20+i];
-        }
-        f<<'\n';
     }
     else
     {
@@ -76,44 +76,32 @@ void addNewUser(char buf[256])
     f.close();
 }
 
-void loginUser(char buf[256], int fd) {
+void loginUser(std::string buf, int fd) {
     std::string userId;
     std::string password;
+    std::string userIdInp = buf.substr(5,buf.find("\n")-5);
+    std::string passwordInp = buf.substr(buf.find("\n")+1,buf.length()-buf.find("\n")-2);
     bool userExists = false;
-    std::fstream f("~/networksproj/userDetails.txt", std::ios::in | std::ios::app);
-    if(!f) {
+    std::fstream f("./userDetails.txt", std::ios::in | std::ios::app);
+    if(f) {
         while(!f.eof()) {
             f>>userId;
             if(f.eof()) {
                 break;
             }
             f>>password;
-            int i;
-            for (i = 0; i < userId.length(); ++i) {
-                if(userId.c_str()[i] != buf[5+i]) {
-                    break;
-                }
-            }
-            if(i == userId.length())
-            {
+            if(userId.compare(userIdInp)==0) {
                 userExists = true;
-                for (i = 0; i < password.length(); ++i) {
-                    if(password.c_str()[i] != buf[5+i]) {
-                        break;
-                    }
-                }
-                if(i == password.length()) {
+                if(password.compare(passwordInp)==0) {
                     std::cout<<"Login Success\n";
                     activeUsers.push_back(User(userId, fd));
                 }
-                else {
-                    std::cout<<"Wrong Password\n";
-                }
-                break;
+                else
+                    std::cout<<"Wrong Password"<<passwordInp<<password;
             }
         }
         if(!userExists) {
-            std::cout<<"Username does not exists\n";
+            std::cout<<"Username does not exists\n"<<buf;
         }
     }
     else
@@ -239,18 +227,19 @@ int main(void)
                         close(i); // bye!
                         FD_CLR(i, &master); // remove from master set
                     } else {
-                        char len[4] = {buf[0], buf[1], buf[2], buf[3]};
-                        int packet_size = atoi(len);
+                        std::string temp(buf);
+                        // char len[4] = {buf[0], buf[1], buf[2], buf[3]};
+                        int packet_size = atoi(temp.substr(0,4).c_str());
                         std::cout<<"packet_size="<<packet_size<<" nbytes="<<nbytes<<'\n';
                         if (nbytes == packet_size) {
                             switch (buf[4])
                             {
                                 case 'R':
                                     std::cout<<"adding User\n";
-                                    addNewUser(buf);
+                                    addNewUser(temp);
                                 case 'L':
                                     std::cout<<"logging in User\n";
-                                    loginUser(buf, i);
+                                    loginUser(temp, i);
                                     break;
                             };
                             // we got some data from a client

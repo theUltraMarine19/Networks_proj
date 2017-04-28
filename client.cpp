@@ -1,6 +1,8 @@
 #include <cstdio>
 #include <cstdlib>
+#include <iostream>
 #include <cstring>
+#include <string>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -11,6 +13,45 @@
 #define PORT "9034"   // port we're connecting to
 
 #define STDIN 0
+
+using namespace std;
+
+void readdata(string &temp, char pac_type, string to_addr, string from_addr){
+    string user;
+    string header;
+    int numbytes;
+    string data;
+    if(pac_type=='R' || pac_type=='L') {
+        cin>>user;
+        if(user.length()>14)
+            cout<<"ERROR";
+        else {
+            user=user+"\n";
+            cin>>data;
+            if(data.length()>14)
+                cout<<"ERROR";
+            else {
+                data=data+"\n";
+                numbytes=5+user.length()+data.length();
+                header = to_string(numbytes);
+                while(header.length()<4)
+                header="0"+header;
+                header=header+pac_type;
+                temp=header+user+data;
+            }
+        }
+    }
+    else {
+        cin>>data;
+        data=data+"\n";
+        numbytes=7+from_addr.length()+to_addr.length()+data.length();
+        header = to_string(numbytes);
+        while(header.length()<4)
+        header="0"+header;
+        header=header+pac_type+from_addr+"\n"+to_addr+"\n";
+        temp=header+data;
+    }   
+}
 
 int main(){
     struct sockaddr_in serveraddr;
@@ -48,7 +89,17 @@ int main(){
     FD_SET(STDIN,&master);
 
     fdmax = sockfd;
-
+    string packet,temp1,temp2;
+    int num;
+    cin>>num;
+    if(num==1)    
+        readdata(packet,'R',temp1,temp2);
+    else
+        readdata(packet,'L',temp1,temp2);
+    if((num=send(sockfd,packet.c_str(),packet.length(),0))==-1){
+        perror("send");
+        exit(0);
+    }
     while(1){
         readfds=master;
         if(select(fdmax+1,&readfds,NULL,NULL,NULL)==-1){
@@ -58,7 +109,7 @@ int main(){
 
         if(FD_ISSET(STDIN,&readfds)){
             char buf[100];
-            int numBytes = read(STDIN,buf,100);
+            int numBytes = read(STDIN,buf,1000);
             buf[numBytes]='\0';
             if((numBytes=send(sockfd,buf,strlen(buf),0))==-1){
                 perror("send");
