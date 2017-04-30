@@ -126,6 +126,22 @@ int main(){
                         exit(0);
                     }
                 }
+                else if (buf[0]== '7'){
+                    string buffer;
+                    readdata(buffer,'I',temp1,temp2);
+                    if((numBytes=send(sockfd,buffer.c_str(),buffer.length(),0))==-1){
+                        perror("send");
+                        exit(0);
+                    }
+                else if (buf[0]== '8'){
+                    string buffer;
+                    readdata(buffer,'S',temp1,temp2);
+                    if((numBytes=send(sockfd,buffer.c_str(),buffer.length(),0))==-1){
+                        perror("send");
+                        exit(0);
+                    }
+
+                }
                 else if (curr_state==3 and temp2.length()!=0) {
                     string buffer(buf);
                     readdata(buffer,'M',temp1,temp2);

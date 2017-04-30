@@ -16,9 +16,14 @@
 #include <vector>
 #include <iostream>
 #include <fstream>
+#include <map>
 #include "user.h"
-
+using namespace std;
 #define PORT "9034"   // port we're listening on
+
+map<string, string> inbox;
+map<string, string> outbox;
+
 
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa)
@@ -174,6 +179,8 @@ void sendMessage(std::string packet) {
             break;
         }
     }
+    inbox[to_addr] = packet;
+    outbox[from_addr] = packet;
     if (send(fd, packet.c_str(), packet.length(), 0) == -1) {
         perror("send");
     }
