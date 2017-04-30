@@ -25,8 +25,6 @@ vector<User> activeUsers;
 vector<string> registeredUsers;
 map<string, vector<string> > inbox;
 
-
-
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa)
 {
@@ -143,7 +141,7 @@ bool throughLDAP(std::string buf, int fd) {
 }
 
 void loginUser(string buf, int fd) {
-    if (throughLDAP(buf,fd)==false) {    
+    if (throughLDAP(buf,fd)==false) {
         string response;
         char resType = 'I';
         string userId;
@@ -278,8 +276,8 @@ void populateRegisteredUsers(){
             }
             f>>password;
             registeredUsers.push_back(userId);
-        }   
-    } 
+        }
+    }
     else{
         cerr<<"Unable to open users.txt\n";
         exit(0);
@@ -287,7 +285,6 @@ void populateRegisteredUsers(){
 }
 
 void requestInbox(int i){
-//    cerr<<"Entering req inbox\n";
     vector<User>::iterator iter;
     string user;
     string reply;
@@ -309,9 +306,9 @@ void requestInbox(int i){
         }
     }
     else{
-	vector<string>::iterator index;
+    vector<string>::iterator index;
         for(index = (it->second).begin();index != (it->second).end();index++){
-            reply = *index;           
+            reply = *index;
             int numBytes;
             cerr<<reply.c_str();
             if((numBytes=send(i,reply.c_str(),reply.length(),0))==-1){
@@ -320,12 +317,6 @@ void requestInbox(int i){
         }
         inbox.erase(it);
     }
- 
-
-/*    else{
-        inbox.erase(user);
-    }*/
-
 }
 
 int main(void)

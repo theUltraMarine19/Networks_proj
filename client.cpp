@@ -55,7 +55,6 @@ int main(){
 
         string packet,temp1,temp2;
         int num;
-        // packet=temp1+"\n"+packet+"\n"
         if(display==0)
             cout<<"\n1) Register\n2) Login\nEnter your choice : ";
 
@@ -97,7 +96,7 @@ int main(){
             perror("send");
             exit(0);
         }
-        
+
         int indeX=0;
 
         bool loggedOut = false;
@@ -156,7 +155,6 @@ int main(){
                 }
                 else
                     temp2 = string(buf);
-            //    print_Menu();
             }
 
             if(FD_ISSET(sockfd,&readfds)){
@@ -169,7 +167,7 @@ int main(){
                     buf[numBytes]='\0';
                     int i=0, n=0;
                     switch(buf[4])
-                    {                                       
+                    {
                         case 'F':
                             loggedOut = true;
                         case 'I':
@@ -192,16 +190,13 @@ int main(){
                             break;
                     };
                 }
-
                 if(indeX==0){
                     print_Menu();
                     indeX++;
                 }
             }
-            
         }
         close(sockfd);
-
     }
 
     return 0;
