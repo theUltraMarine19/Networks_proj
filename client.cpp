@@ -10,6 +10,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include "user.h"
+#include "guiInitial.h"
 
 #define PORT "9034"   // port we're connecting to
 
@@ -24,6 +25,9 @@ int main(){
     fd_set master;
     fd_set readfds;
     int fdmax;
+    int display;
+    cin>>display;
+    std::string msg="Username and password must be alphanumeric";
     while(true)
     {
 
@@ -48,17 +52,30 @@ int main(){
 
         string packet,temp1,temp2;
         int num;
-        // cin>>temp1>>packet;
         // packet=temp1+"\n"+packet+"\n"
         do
         {
-            cin>>curr_state;
-            if(curr_state==1)
-                readdata(packet,'R',temp1,temp2);
-            else if(curr_state==2)
-                readdata(packet,'L',temp1,temp2);
-            else
-                curr_state = 0;
+            if (display == 0)
+            {
+                cin>>curr_state;
+                if(curr_state==1)
+                    readdata(packet,'R',temp1,temp2);
+                else if(curr_state==2)
+                    readdata(packet,'L',temp1,temp2);
+                else
+                    curr_state = 0;
+            }
+            else if (display == 1)
+            {
+                init_x();
+                std::string uname, passw;
+                curr_state = loginPage(uname, passw, msg);
+                if(curr_state==1)
+                    readdata(packet,'R',temp1,temp2,true,uname,passw);
+                else if(curr_state==2)
+                    readdata(packet,'L',temp1,temp2,true,uname,passw);
+                close_x();
+            }
         }while(curr_state == 0);
 
         if(connect(sockfd,(struct sockaddr*)&serveraddr,sizeof(struct sockaddr))==-1){
@@ -144,7 +161,14 @@ int main(){
                                 }
                                 i++;
                             }
-                            printf("%s", &buf[i]);
+                            if (buf[4] == 'F' and display == 1) {
+                                std::string message(&buf[i]);
+                                msg = message;
+                            }
+                            else
+                            {
+                                printf("%s", &buf[i]);
+                            }
                             break;
                     };
                 }

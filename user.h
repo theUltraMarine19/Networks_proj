@@ -14,17 +14,23 @@ struct User
     }
 };
 
-void readdata(string &temp, char pac_type, string &to_addr, string from_addr){
+void readdata(string &temp, char pac_type, string &to_addr, string from_addr, bool guiON=false, string username="", string password=""){
     string user;
     string header;
     int numbytes;
     string data;
     if(pac_type=='R' || pac_type=='L') {
-        cin>>user;
+        if(!guiON)
+            cin>>user;
+        else
+            user=username;
         if(user.length()>14)
             cout<<"ERROR";
         else {
-            cin>>data;
+            if(!guiON)
+                cin>>data;
+            else
+                data=password;
             if(data.length()>14)
                 cout<<"ERROR";
             else {

@@ -85,85 +85,57 @@ void addNewUser(std::string buf, int fd)
 void loginUser(std::string buf, int fd) {
     std::string response;
     char resType = 'I';
-    std::string serverResponse;
+    std::string userId;
+    std::string password;
     std::string userIdInp = buf.substr(5,buf.find("\n")-5);
     std::string passwordInp = buf.substr(buf.find("\n")+1,buf.length()-buf.find("\n")-2);
-    std::vector<User>::iterator iter;
-    for (iter = activeUsers.begin(); iter != activeUsers.end(); iter++) {
-        if(userIdInp.compare(iter->id) == 0) {
-            break;
+    bool userExists = false;
+    std::ifstream f("./userDetails.txt", std::ios::in);
+    if(f) {
+        while(!f.eof()) {
+            f>>userId;
+            if(f.eof()) {
+                break;
+            }
+            f>>password;
+            if(userId.compare(userIdInp)==0) {
+                userExists = true;
+                std::vector<User>::iterator iter;
+                for (iter = activeUsers.begin(); iter != activeUsers.end(); iter++) {
+                    if(userId.compare(iter->id) == 0) {
+                        break;
+                    }
+                }
+                if (iter != activeUsers.end()) {
+                    response = "Already Logged in -_-\n";
+                    resType = 'F';
+                }
+                else if(password.compare(passwordInp)==0) {
+                    response = "Login Success\n";
+                    activeUsers.push_back(User(userId, fd));
+                    resType = 'I';
+                }
+                else {
+                    response = "Wrong Password :(\n";
+                    resType = 'F';
+                }
+            }
         }
-    }
-    if (iter != activeUsers.end()) {
-        response = "Already Logged in -_-\n";
-        resType = 'F';
-    }
-    else {
-        FILE *fp;
-        char path[1035];
-        sprintf (path, "ldapsearch -x -h cs252lab.cse.iitb.ac.in -l 1 -D \"cn=%s,dc=cs252lab,dc=cse,dc=iitb,dc=ac,dc=in\" -w \"%s\"",userIdInp.c_str(),passwordInp.c_str());
-        fp = popen(path, "r");
-        if (fp == NULL) {
-            response = "LDAP server not available. Please try again later.\n";
+        if(!userExists) {
+            response = "Username does not exists\n";
             resType = 'F';
         }
-        else {
-            while (fgets(path, sizeof(path)-1, fp) != NULL) {
-                printf("%s", path);
-                serverResponse = std::string(path);
-            }
-            if(serverResponse.compare("ldap_bind: Invalid credentials (49)\n")==0) {
-                response = "Invalid credentials\n";
-                resType = 'F';
-            }
-            else if (serverResponse.compare("ldap_sasl_bind(SIMPLE): Can\'t contact LDAP server (-1)\n")==0) {
-                response = "LDAP server timed out\n";
-                resType = 'F';   
-            }
-            else {
-                activeUsers.push_back(User(userIdInp, fd));
-                response = "Login Success\n";
-                resType = 'I';
-            }
-            pclose(fp);
-        }
     }
-    // std::ifstream f("./userDetails.txt", std::ios::in);
-    // if(f) {
-    //     while(!f.eof()) {
-    //         f>>userId;
-    //         if(f.eof()) {
-    //             break;
-    //         }
-    //         f>>password;
-    //         if(userId.compare(userIdInp)==0) {
-    //             userExists = true;
-    //             else if(password.compare(passwordInp)==0) {
-    //                 response = "Login Success\n";
-    //                 activeUsers.push_back(User(userId, fd));
-    //                 resType = 'I';
-    //             }
-    //             else {
-    //                 response = "Wrong Password :(\n";
-    //                 resType = 'F';
-    //             }
-    //         }
-    //     }
-    //     if(!userExists) {
-    //         response = "Username does not exists\n";
-    //         resType = 'F';
-    //     }
-    // }
-    // else
-    // {
-    //     std::cout<<"could not open file\n";
-    // }
+    else
+    {
+        std::cout<<"could not open file\n";
+    }
     std::string from_addr("server");
     readdata(response, resType, from_addr, userIdInp);
     if (send(fd, response.c_str(), response.length(), 0) == -1) {
         perror("send");
     }
-    // f.close();
+    f.close();
 }
 
 void logoutUser(int fd) {
