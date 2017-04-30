@@ -174,11 +174,10 @@ int main(){
                             loggedOut = true;
                         case 'I':
                         case 'M':
-                            while (buf[i] != '\0' and n < 2)
+                            while (buf[i] != '\0' and n < 1)
                             {
                                 if (buf[i] == '\n') {
                                     n++;
-                                    break;
                                 }
                                 i++;
                             }
@@ -188,7 +187,7 @@ int main(){
                             }
                             else
                             {
-                                printf("%s", &buf[i]);
+                                printf("%s\n", &buf[i]);
                             }
                             break;
                     };

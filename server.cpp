@@ -90,60 +90,104 @@ void addNewUser(string buf, int fd)
     }
 }
 
-void loginUser(string buf, int fd) {
-    string response;
+bool throughLDAP(std::string buf, int fd) {
+    std::string response;
     char resType = 'I';
-    string userId;
-    string password;
-    string userIdInp = buf.substr(5,buf.find("\n")-5);
-    string passwordInp = buf.substr(buf.find("\n")+1,buf.length()-buf.find("\n")-2);
-    bool userExists = false;
-    ifstream f("./userDetails.txt", ios::in);
-    if(f) {
-        while(!f.eof()) {
-            f>>userId;
-            if(f.eof()) {
-                break;
+    std::string userIdInp = buf.substr(5,buf.find("\n")-5);
+    std::string passwordInp = buf.substr(buf.find("\n")+1,buf.length()-buf.find("\n")-2);
+    std::vector<User>::iterator iter;
+    for (iter = activeUsers.begin(); iter != activeUsers.end(); iter++) {
+        if(userIdInp.compare(iter->id) == 0) {
+            break;
+        }
+    }
+    if (iter != activeUsers.end()) {
+        response = "Already Logged in -_-\n";
+        resType = 'F';
+        std::string from_addr("server");
+        readdata(response, resType, from_addr, userIdInp);
+        if (send(fd, response.c_str(), response.length(), 0) == -1) {
+            perror("send");
+        }
+        return true;
+    }
+    else {
+        FILE *fp;
+        char LDAPresponse[1000];
+        string LDAPquery("ldapsearch -x -h cs252lab.cse.iitb.ac.in -l 1 -D \"cn=");
+        LDAPquery=LDAPquery+userIdInp+",dc=cs252lab,dc=cse,dc=iitb,dc=ac,dc=in\" -w \""+passwordInp+"\"";
+        fp = popen(LDAPquery.c_str(), "r");
+        if (fp == NULL) {
+            return false;
+        }
+        else {
+            fgets(LDAPresponse, sizeof(LDAPresponse)-1, fp);
+            if(strcmp(LDAPresponse,"# extended LDIF\n")==0) {
+                activeUsers.push_back(User(userIdInp, fd));
+                response = "Login Success\n";
+                resType = 'I';
+                std::string from_addr("server");
+                readdata(response, resType, from_addr, userIdInp);
+                if (send(fd, response.c_str(), response.length(), 0) == -1) {
+                    perror("send");
+                }
+                pclose(fp);
+                return true;
             }
-            f>>password;
-            if(userId.compare(userIdInp)==0) {
-                userExists = true;
-                vector<User>::iterator iter;
-                for (iter = activeUsers.begin(); iter != activeUsers.end(); iter++) {
-                    if(userId.compare(iter->id) == 0) {
-                        break;
+            else {
+                pclose(fp);
+                return false;
+            }
+        }
+    }
+}
+
+void loginUser(string buf, int fd) {
+    if (throughLDAP(buf,fd)==false) {    
+        string response;
+        char resType = 'I';
+        string userId;
+        string password;
+        string userIdInp = buf.substr(5,buf.find("\n")-5);
+        string passwordInp = buf.substr(buf.find("\n")+1,buf.length()-buf.find("\n")-2);
+        bool userExists = false;
+        ifstream f("./userDetails.txt", ios::in);
+        if(f) {
+            while(!f.eof()) {
+                f>>userId;
+                if(f.eof()) {
+                    break;
+                }
+                f>>password;
+                if(userId.compare(userIdInp)==0) {
+                    userExists = true;
+                    if(password.compare(passwordInp)==0) {
+                        response = "Login Success\n";
+                        activeUsers.push_back(User(userId, fd));
+                        resType = 'I';
+                    }
+                    else {
+                        response = "Login failed. Invalid Credentials\n";
+                        resType = 'F';
                     }
                 }
-                if (iter != activeUsers.end()) {
-                    response = "Already Logged in -_-\n";
-                    resType = 'F';
-                }
-                else if(password.compare(passwordInp)==0) {
-                    response = "Login Success\n";
-                    activeUsers.push_back(User(userId, fd));
-                    resType = 'I';
-                }
-                else {
-                    response = "Wrong Password :(\n";
-                    resType = 'F';
-                }
+            }
+            if(!userExists) {
+                response = "Login failed. Invalid Credentials\n";
+                resType = 'F';
             }
         }
-        if(!userExists) {
-            response = "Username does not exists\n";
-            resType = 'F';
+        else
+        {
+            cout<<"could not open file\n";
         }
+        string from_addr("server");
+        readdata(response, resType, from_addr, userIdInp);
+        if (send(fd, response.c_str(), response.length(), 0) == -1) {
+            perror("send");
+        }
+        f.close();
     }
-    else
-    {
-        cout<<"could not open file\n";
-    }
-    string from_addr("server");
-    readdata(response, resType, from_addr, userIdInp);
-    if (send(fd, response.c_str(), response.length(), 0) == -1) {
-        perror("send");
-    }
-    f.close();
 }
 
 void logoutUser(int fd) {
@@ -255,7 +299,8 @@ void requestInbox(int i){
     }
     map<string,vector<string> >::iterator it;
     string from_addr("server");
-    if((it=inbox.find(user))==inbox.end()){
+    it=inbox.find(user);
+    if(it==inbox.end()){
         reply = "No messages left\n";
         readdata(reply,'I',from_addr,user);
         int numBytes;
@@ -264,10 +309,11 @@ void requestInbox(int i){
         }
     }
     else{
-
-        for(int index = 0;index<(it->second).size();it++){
-            reply = (it->second)[index];           
+	vector<string>::iterator index;
+        for(index = (it->second).begin();index != (it->second).end();index++){
+            reply = *index;           
             int numBytes;
+            cerr<<reply.c_str();
             if((numBytes=send(i,reply.c_str(),reply.length(),0))==-1){
                 perror("send");
             }

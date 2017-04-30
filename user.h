@@ -47,7 +47,7 @@ void readdata(string &temp, char pac_type, string &to_addr, string from_addr, bo
         }
     }
     else {
-        temp=temp+"\n";
+        temp=temp;
         numbytes=6+from_addr.length()+to_addr.length()+temp.length();
         header = to_string(numbytes);
         while(header.length()<4)
