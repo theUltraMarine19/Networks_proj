@@ -16,7 +16,9 @@
 
 #define STDIN 0
 
-
+void print_Menu(){
+    cerr<<"*************\n3 - Send msg\n4 - Active Users\n5 - Logout\n6 - Exit\n7 - Inbox\n9 - Print this again\n*************\n";
+}
 
 int main(){
     struct sockaddr_in serveraddr;
@@ -26,8 +28,9 @@ int main(){
     fd_set readfds;
     int fdmax;
     int display;
+    cout<<"Enter whether to use GUI or Not : ";
     cin>>display;
-    std::string msg="Username and password must be alphanumeric";
+    string msg="Username and password must be alphanumeric";
     while(true)
     {
 
@@ -53,6 +56,9 @@ int main(){
         string packet,temp1,temp2;
         int num;
         // packet=temp1+"\n"+packet+"\n"
+        if(display==0)
+            cout<<"\n1) Register\n2) Login\nEnter your choice : ";
+
         do
         {
             if (display == 0)
@@ -68,7 +74,7 @@ int main(){
             else if (display == 1)
             {
                 init_x();
-                std::string uname, passw;
+                string uname, passw;
                 curr_state = loginPage(uname, passw, msg);
                 if(curr_state==1)
                     readdata(packet,'R',temp1,temp2,true,uname,passw);
@@ -91,6 +97,9 @@ int main(){
             perror("send");
             exit(0);
         }
+        
+        int indeX=0;
+
         bool loggedOut = false;
         while(!loggedOut){
             readfds=master;
@@ -118,6 +127,9 @@ int main(){
                 else if(buf[0] == '6') {
                     exit(0);
                 }
+                else if(buf[0] == '9'){
+                    print_Menu();
+                }
                 else if(buf[0] == '5') {
                     string buffer;
                     readdata(buffer,'O',temp1,temp2);
@@ -133,14 +145,6 @@ int main(){
                         perror("send");
                         exit(0);
                     }
-                else if (buf[0]== '8'){
-                    string buffer;
-                    readdata(buffer,'S',temp1,temp2);
-                    if((numBytes=send(sockfd,buffer.c_str(),buffer.length(),0))==-1){
-                        perror("send");
-                        exit(0);
-                    }
-
                 }
                 else if (curr_state==3 and temp2.length()!=0) {
                     string buffer(buf);
@@ -152,6 +156,7 @@ int main(){
                 }
                 else
                     temp2 = string(buf);
+            //    print_Menu();
             }
 
             if(FD_ISSET(sockfd,&readfds)){
@@ -164,7 +169,7 @@ int main(){
                     buf[numBytes]='\0';
                     int i=0, n=0;
                     switch(buf[4])
-                    {
+                    {                                       
                         case 'F':
                             loggedOut = true;
                         case 'I':
@@ -178,7 +183,7 @@ int main(){
                                 i++;
                             }
                             if (buf[4] == 'F' and display == 1) {
-                                std::string message(&buf[i]);
+                                string message(&buf[i]);
                                 msg = message;
                             }
                             else
@@ -188,7 +193,13 @@ int main(){
                             break;
                     };
                 }
+
+                if(indeX==0){
+                    print_Menu();
+                    indeX++;
+                }
             }
+            
         }
         close(sockfd);
 

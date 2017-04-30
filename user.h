@@ -20,8 +20,10 @@ void readdata(string &temp, char pac_type, string &to_addr, string from_addr, bo
     int numbytes;
     string data;
     if(pac_type=='R' || pac_type=='L') {
-        if(!guiON)
+        if(!guiON){
+            cerr<<"Enter in the order username and password\n";
             cin>>user;
+        }
         else
             user=username;
         if(user.length()>14)
